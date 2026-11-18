@@ -6,6 +6,7 @@ import { h, fmt, keyLabel, topBar, valueBar } from './dom.js';
 import { MouseStick } from '../input/mouse-stick.js';
 import { KeyPedals } from '../input/keyboard-pedals.js';
 import { listPads } from '../input/gamepad.js';
+import { LegendView } from '../render/instruments.js';
 
 export function mount(root, ctx) {
   const S = ctx.state.settings;
@@ -78,6 +79,8 @@ export function mount(root, ctx) {
   kp.attach();
   const pedalBar = valueBar(true);
   const pedalVal = mono();
+  const legendCanvas = h('canvas', { class: 'legend-view', 'aria-label': 'Stick and pedal pictures' });
+  const legend = new LegendView(legendCanvas);
   const imeNote = h('div', { class: 'notice', hidden: true }, 'A Vietnamese input method (Unikey / EVKey / Windows Telex) seems active: in Telex, keys like A, D, S, F, R, X, J and W become letter/tone edits and the input method can swallow or garble pedal presses. Switch it to English (E) before practising.');
   const logBody = h('tbody');
   let t0 = null;
@@ -160,7 +163,10 @@ export function mount(root, ctx) {
           h('div', null, h('p', { class: 'small muted' }, 'Stick value (forward = right of centre here):'), stickBar, h('p', null, M.val), h('button', { class: 'btn small', onclick: () => ms.reset() }, 'Re-centre'),
             h('p', { class: 'small muted' }, '"pointerrawupdate" means the browser delivers every mouse report (lowest latency). Sideways movement is counted only to prove it is ignored.')))),
       card('Mouse calibration', calText, calLive, calBtns),
-      card('Keys as pedals', h('div', { class: 'row' }, h('span', null, `Left: ${keyLabel(S.device.pedals.leftKey)} · Right: ${keyLabel(S.device.pedals.rightKey)}`), h('a', { href: '#/settings' }, 'change')),
+      card('Keys as pedals',
+        legendCanvas,
+        h('p', { class: 'small muted' }, 'The same pictures as on the test screen. Press a pedal key: the pedal lights up at once and fills as it goes down. Capture the mouse and move it: the stick arrow lights up the way you push.'),
+        h('div', { class: 'row' }, h('span', null, `Left: ${keyLabel(S.device.pedals.leftKey)} · Right: ${keyLabel(S.device.pedals.rightKey)}`), h('a', { href: '#/settings' }, 'change')),
         h('div', { class: 'row', style: { flexWrap: 'nowrap', margin: '8px 0' } }, h('div', { style: { flex: 1 } }, pedalBar), pedalVal),
         imeNote,
         h('p', { class: 'small muted' }, 'Press keys or a USB foot switch. A good foot switch sends key-up when released, so "hold" matches how long you held it. Auto-repeat shows as repeat = yes and is ignored by the app.'),
@@ -202,6 +208,9 @@ export function mount(root, ctx) {
     const pv = kp.advanceTo(now, dt);
     pedalBar.set(pv);
     pedalVal.textContent = `${pv >= 0 ? '+' : ''}${pv.toFixed(2)}`;
+    const pdc = S.device.pedals;
+    const lvl = (full, light) => (kp.held.has(full) ? 1 : light && kp.held.has(light) ? 0.5 : 0);
+    legend.draw({ stick: v, pedal: pv, feedback: true, actL: lvl(pdc.leftKey, pdc.leftLightKey), actR: lvl(pdc.rightKey, pdc.rightLightKey), keyL: keyLabel(pdc.leftKey), keyR: keyLabel(pdc.rightKey), showStick: true, showPedal: true });
     const pads = listPads();
     const sig = pads.map((p) => `${p.index}:${p.id}:${p.axes.length}:${p.buttons.length}`).join('|');
     if (sig !== padSig) {

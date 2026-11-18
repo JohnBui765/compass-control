@@ -14,7 +14,9 @@ export const home = {
     const prof = activeProfile(ctx.state);
     const ss = s.session;
     const notices = [];
-    if (!s.ui.stickyTipDismissed) {
+    if (!s.ui.helpSeen) {
+      notices.push(h('div', { class: 'notice info' }, h('b', null, 'New here? '), 'Read "How to use" first (2 minutes): which key does what, and 4 steps to get started. ', h('button', { class: 'btn small primary', onclick: () => ctx.navigate('help') }, 'How to use')));
+    } else if (!s.ui.stickyTipDismissed) {
       const n = h(
         'div',
         { class: 'notice info' },
@@ -48,6 +50,7 @@ export const home = {
           'div',
           { class: 'home-menu' },
           menuButton('Start session', runsTxt, () => ctx.navigate('session'), true),
+          menuButton('How to use', 'Controls, first steps, tips, problems', () => ctx.navigate('help')),
           menuButton('Free practice', 'No time limit · live tuning keys', () => ctx.navigate('free')),
           menuButton('Tuning Lab', 'Match the feel to the real test', () => ctx.navigate('tuning')),
           menuButton('Hardware test', 'Mouse, keys, joystick, pedals', () => ctx.navigate('hardware')),

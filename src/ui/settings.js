@@ -53,6 +53,8 @@ const SCORING = [
   { path: 'scoring.ballTolRadii', label: 'Ball on target within (× ball radius)', min: 0.25, max: 4, step: 0.25 },
 ];
 const TRAINING = [
+  { path: 'training.examLook', label: 'Exam look – hide all training aids', type: 'bool', help: 'The test screen looks like the real test: static pictures, no indicators, no error bars. Use it for your last practice sessions.' },
+  { path: 'training.inputFeedback', label: 'Light up the stick and pedal pictures when you use them', type: 'bool', help: 'The pedal you press lights up at once and fills as it goes down (the ball follows the fill); the stick arrow lights up the way you push.' },
   { path: 'training.varyFeel', label: 'Vary feel each run', type: 'bool', help: 'Learn to recalibrate quickly instead of memorising one feel. Directions never change.' },
   { path: 'training.varyMode', label: 'What varies', type: 'select', options: [['brief', 'Response speed and mouse travel (± range)'], ['uncertainty', 'Everything you tuned, within your own uncertainty bands']] },
   { path: 'training.varyRange', label: 'Vary range (±)', min: 0, max: 0.6, step: 0.05 },

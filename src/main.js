@@ -10,6 +10,7 @@ import * as settings from './ui/settings.js';
 import * as tuning from './ui/tuning.js';
 import * as hardware from './ui/hardware.js';
 import * as history from './ui/history.js';
+import * as help from './ui/help.js';
 
 const routes = {
   home: screens.home,
@@ -22,6 +23,7 @@ const routes = {
   tuning,
   hardware,
   history,
+  help,
 };
 
 const state = loadState();

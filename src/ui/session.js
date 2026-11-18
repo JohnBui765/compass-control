@@ -7,6 +7,7 @@
 
 import { h, fmt, pct, keyLabel } from './dom.js';
 import { field, fmtSpec } from './fields.js';
+import { controlsCheatSheet, controlsOneLiner } from './help.js';
 import { Instruments } from '../render/instruments.js';
 import { RunEngine, arraySource } from '../sim/engine.js';
 import { tolerances, freeRun, scoreRun, averageRuns } from '../sim/scoring.js';
@@ -107,11 +108,11 @@ function mountRunner(root, ctx, kind) {
     }
   }
   const cdNum = h('div', { class: 'countdown' });
+  const cdBox = h('div', { style: { textAlign: 'center' } }, cdNum, h('div', { class: 'cd-hint' }, controlsOneLiner(S)));
   function showCountdown() {
-    show(cdNum, true);
+    show(cdBox, true);
   }
 
-  const pedalKeys = () => (inputs.keys ? `${keyLabel(S.device.pedals.leftKey)} (left) and ${keyLabel(S.device.pedals.rightKey)} (right)` : 'your pedals');
   function deviceNotices() {
     const out = [];
     const st = S.device.stick;
@@ -123,16 +124,7 @@ function mountRunner(root, ctx, kind) {
   }
 
   function showIntro() {
-    const dir = base.directions.stick === 'inverted' ? 'push forward → needle up' : 'push forward → needle down';
-    const pdir = base.directions.pedal === 'push' ? 'right pedal → ball right' : 'right pedal → ball left ("step on the ball")';
-    const stickTxt = inputs.mouse
-      ? S.device.stick.mouseMode === 'absolute'
-        ? 'move the mouse up/down over the window'
-        : 'slide the mouse forward/back (sideways does nothing)'
-      : 'the joystick (fore/aft)';
     const list = [
-      h('li', null, `Needle → keep it on the red dot with the stick: ${stickTxt}. ${dir}.`),
-      h('li', null, `Ball → keep it on the red dot with the pedals: ${pedalKeys()}. ${pdir}.`),
       kind === 'session'
         ? h('li', null, `${ss.practiceSec ? `${ss.practiceSec} s practice (not scored), then ` : ''}${ss.runs} run${ss.runs > 1 ? 's' : ''} of ${ss.runSec} s${ss.runs > 1 && ss.breakSec ? ` with ${ss.breakSec} s breaks` : ''}.`)
         : h('li', null, 'No time limit. Tuning keys: [ and ] choose a setting, − and = change it (saved to your profile).'),
@@ -144,10 +136,12 @@ function mountRunner(root, ctx, kind) {
       'div',
       { class: 'card' },
       h('h2', null, kind === 'session' ? 'Control – practice session' : 'Free practice'),
-      h('ul', null, list),
+      h('p', { class: 'small muted', style: { margin: '0' } }, 'Keep the blue needle and the blue ball on their red dots, both at once:'),
+      controlsCheatSheet(S, base),
+      h('ul', { class: 'small' }, list),
       h('p', { class: 'muted small' }, `Profile "${base.name}", difficulty ${ss.difficulty}${S.training.varyFeel ? ', feel varies each run' : ''}. ${ss.fullscreen ? 'The screen goes full screen and the mouse is captured.' : 'The mouse is captured.'}`),
       deviceNotices(),
-      h('div', { class: 'row' }, startBtn, h('button', { class: 'btn', onclick: () => ctx.navigate('home') }, 'Back')),
+      h('div', { class: 'row' }, startBtn, h('button', { class: 'btn', onclick: () => ctx.navigate('home') }, 'Back'), h('button', { class: 'btn', onclick: () => ctx.navigate('help', 'controls') }, '? How to use')),
     );
     show(card);
     startBtn.focus();
@@ -469,6 +463,18 @@ function mountRunner(root, ctx, kind) {
   window.addEventListener('blur', onBlur);
   document.addEventListener('visibilitychange', onVis);
 
+  // ---- input feedback for the stick/pedal pictures ----
+  const pd = S.device.pedals;
+  const keyL = inputs.keys ? keyLabel(pd.leftKey) : 'L';
+  const keyR = inputs.keys ? keyLabel(pd.rightKey) : 'R';
+  /** How hard each pedal key is held right now (1 full, 0.5 half key, 0 none); gamepads: from the value. */
+  function pedalActivity(pv) {
+    if (!inputs.keys) return { L: pv < -0.02 ? 1 : 0, R: pv > 0.02 ? 1 : 0 };
+    const held = inputs.keys.held;
+    const lvl = (full, light) => (held.has(full) ? 1 : light && held.has(light) ? 0.5 : 0);
+    return { L: lvl(pd.leftKey, pd.leftLightKey), R: lvl(pd.rightKey, pd.rightLightKey) };
+  }
+
   // ---- main loop ----
   function loop(now) {
     raf = requestAnimationFrame(loop);
@@ -507,6 +513,8 @@ function mountRunner(root, ctx, kind) {
       if (engine) timer = p.type === 'free' ? clock(engine.elapsedSec) : clock(engine.remainingSec);
       else if (p.type !== 'free' && phase !== 'done') timer = clock(p.sec);
     }
+    const aids = !S.training.examLook;
+    const act = pedalActivity(pedalV);
     const label = !p || phase === 'intro' || phase === 'done' ? '' : p.type === 'practice' ? 'Practice' : p.type === 'run' ? `Run ${p.index + 1} of ${ss.runs}` : p.type === 'free' ? 'Free practice' : '';
     inst.draw({
       eN: engine ? engine.eN : 0,
@@ -517,9 +525,14 @@ function mountRunner(root, ctx, kind) {
       label,
       stick: stickV,
       pedal: pedalV,
-      showStick: S.training.stickIndicator,
-      showPedal: S.training.pedalIndicator,
-      errorBars: S.training.errorBars,
+      showStick: aids && S.training.stickIndicator,
+      showPedal: aids && S.training.pedalIndicator,
+      errorBars: aids && S.training.errorBars,
+      feedback: aids && S.training.inputFeedback,
+      actL: act.L,
+      actR: act.R,
+      keyL,
+      keyR,
       tol,
     });
   }
@@ -577,6 +590,9 @@ function mountReplay(root, ctx, params) {
     if (disposed) return;
     if (!run || !rep || !rep.stick) return fail('The full input recording for this run is not stored (only the newest 30 sessions keep them).');
     const title = idx === 'practice' ? 'Practice' : `Run ${Number(idx) + 1}`;
+    const rp = rec.device && rec.device.pedals;
+    const keyL = rp && rp.source === 'keys' ? keyLabel(rp.leftKey) : 'L';
+    const keyR = rp && rp.source === 'keys' ? keyLabel(rp.rightKey) : 'R';
     let engine;
     let vt = 0;
     let speed = 1;
@@ -618,6 +634,11 @@ function mountReplay(root, ctx, params) {
         showStick: true,
         showPedal: true,
         errorBars: true,
+        feedback: true, // replays light a pedal while its recorded value is non-zero
+        actL: engine.pedalVal < -0.02 ? 1 : 0,
+        actR: engine.pedalVal > 0.02 ? 1 : 0,
+        keyL,
+        keyR,
         tol: rec.tol,
       });
     };

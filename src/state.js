@@ -55,12 +55,14 @@ export const DEFAULT_SETTINGS = Object.freeze({
     varyFeel: false,
     varyMode: 'brief', // 'brief' | 'uncertainty'
     varyRange: 0.25,
+    inputFeedback: true, // stick/pedal pictures light up when used
+    examLook: false, // hide every training aid (screen like the real test)
     stickIndicator: true,
     pedalIndicator: false,
     errorBars: false,
   },
   display: { background: 'light', instrumentScale: 1 },
-  ui: { stickyTipDismissed: false, imeTipDismissed: false },
+  ui: { stickyTipDismissed: false, imeTipDismissed: false, helpSeen: false },
 });
 
 export function loadState() {

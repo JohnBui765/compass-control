@@ -127,3 +127,25 @@ table.data th:first-child, table.data td:first-child { text-align: left; }
   .field > label { grid-column: 1 / -1; }
   .countdown { font-size: 80px; }
 }
+
+/* ---- how to use ---- */
+.cheat { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; margin: 8px 0 12px; }
+.cheat .box { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.cheat .box svg { display: block; }
+.cheat h4 { margin: 0 0 4px; font-size: 15px; }
+.cheat .rule { margin: 4px 0; }
+.kbd.big { font-size: 14px; padding: 1px 8px; font-weight: 600; }
+.step { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.step:last-child { border-bottom: 0; }
+.step .num { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.faq dt { font-weight: 600; margin-top: 10px; }
+.faq dd { margin: 2px 0 0; color: var(--muted); }
+.help-table th:last-child, .help-table td:last-child { text-align: left; white-space: normal; }
+.cd-hint { margin-top: 6px; font: 500 16px/1.4 system-ui, sans-serif; color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.overlay.clear .cd-hint { color: #3a3a3a; text-shadow: none; }
+.stage.dark .overlay.clear .cd-hint, .stage.dark .overlay.clear .countdown { color: #ddd; }
+@media (max-width: 560px) {
+  .step { grid-template-columns: 30px 1fr; }
+  .step .btn { grid-column: 2; justify-self: start; }
+}
+.legend-view { width: 100%; height: 130px; display: block; border-radius: 8px; margin: 8px 0 4px; }

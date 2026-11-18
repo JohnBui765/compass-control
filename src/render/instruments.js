@@ -198,77 +198,204 @@ function drawTrackStatic(c, L) {
   redDot(c, t.cx, t.cy, t.ballR * 1.18);
 }
 
-// ---- legend strip icons (drawn in a 60-unit-high box) ----
-function drawStrip(c, L, theme) {
-  const { y, h } = L.strip;
-  if (!h) return;
+// ---- legend strip: stick + pedal pictures, redrawn every frame so they can react ----
+const LIT = '#2a55f0';
+const LIT_GLOW = 'rgba(42, 85, 240, 0.75)';
+
+function drawStripLine(c, L, theme) {
+  if (!L.strip.h) return;
   c.fillStyle = theme.line;
-  c.fillRect(0, y, L.W, 1);
-  const u = h / 60;
-  const ox = 12;
-  const oy = y;
-  const P = (px, py) => [ox + px * u, oy + py * u];
-  // up/down arrow
-  c.fillStyle = '#a3a3a3';
+  c.fillRect(0, L.strip.y, L.W, 1);
+}
+
+function poly(c, P, pts) {
   c.beginPath();
-  const arrow = [[6, 10], [13, 19], [8.5, 19], [8.5, 33], [13, 33], [6, 42], [-1, 33], [3.5, 33], [3.5, 19], [-1, 19]];
-  arrow.forEach(([a, b], i) => (i ? c.lineTo(...P(a, b)) : c.moveTo(...P(a, b))));
+  pts.forEach(([a, b], i) => (i ? c.lineTo(...P(a, b)) : c.moveTo(...P(a, b))));
   c.closePath();
+}
+
+/**
+ * Stick and pedal pictures (60-unit-high box at ox, oy; u = CSS px per unit) plus the
+ * optional indicators. With s.feedback they react to your input:
+ *  - stick: the ↑ or ↓ arrow lights in the direction you push, the grip moves with it;
+ *  - pedals: a pedal lights up the moment its key is pressed (s.actL / s.actR), and fills
+ *    and sinks as the pedal value builds up – the ball follows the fill, not the key.
+ *    Both keys held: both light up, neither fills (linked pedals cancel).
+ * Without s.feedback the pictures are static, like the real test.
+ */
+export function drawLegend(c, ox, oy, u, s, theme) {
+  const P = (px, py) => [ox + px * u, oy + py * u];
+  const fb = !!s.feedback;
+  const stick = clamp1(s.stick || 0);
+  const pedal = clamp1(s.pedal || 0);
+  const moving = fb && Math.abs(stick) > 0.02;
+
+  // up/down arrow: the half you push toward lights up, brighter for a bigger push
+  const up = [[6, 10], [13, 19], [8.5, 19], [8.5, 26], [3.5, 26], [3.5, 19], [-1, 19]];
+  const down = [[6, 42], [13, 33], [8.5, 33], [8.5, 26], [3.5, 26], [3.5, 33], [-1, 33]];
+  for (const [pts, on] of [[up, stick > 0.02], [down, stick < -0.02]]) {
+    poly(c, P, pts);
+    c.fillStyle = '#a3a3a3';
+    c.fill();
+    if (fb && on) {
+      c.globalAlpha = 0.4 + 0.6 * Math.min(1, Math.abs(stick) * 1.5);
+      c.fillStyle = LIT;
+      c.fill();
+      c.globalAlpha = 1;
+    }
+  }
+  // stick: shaft, collar, grip (the grip moves up = forward, down = back)
+  const gy = fb ? -stick * 3.5 : 0;
+  c.fillStyle = '#2d2e30';
+  c.fillRect(...P(23, 17 + gy), 3 * u, (25 - gy) * u);
+  poly(c, P, [[20, 44], [29, 44], [26.5, 40], [22.5, 40]]);
   c.fill();
-  // stick: grip with three buttons, shaft, base
-  c.fillStyle = '#3a3b3d';
-  rr(c, ...P(16, 7), 17 * u, 10 * u, 3 * u);
+  if (moving) {
+    c.shadowColor = LIT_GLOW;
+    c.shadowBlur = 6 * u;
+  }
+  c.fillStyle = moving ? '#1f3fb8' : '#3a3b3d';
+  rr(c, ...P(16, 7 + gy), 17 * u, 10 * u, 3 * u);
   c.fill();
+  c.shadowBlur = 0;
   c.fillStyle = '#f2f2f2';
   for (const [a, b] of [[20, 11], [24.5, 9.5], [29, 11]]) {
     c.beginPath();
-    c.arc(...P(a, b), 1.3 * u, 0, TAU);
+    c.arc(...P(a, b + gy), 1.3 * u, 0, TAU);
     c.fill();
   }
-  c.fillStyle = '#2d2e30';
-  c.fillRect(...P(23, 17), 3 * u, 25 * u);
-  c.beginPath();
-  c.moveTo(...P(20, 44));
-  c.lineTo(...P(29, 44));
-  c.lineTo(...P(26.5, 40));
-  c.lineTo(...P(22.5, 40));
-  c.closePath();
-  c.fill();
   c.fillStyle = '#8a8a8a';
   c.fillRect(...P(19.5, 47), 10 * u, 9 * u);
-  // pedals: base, two pedals joined by a bar, arrows above, dark bar below
+
+  // pedals: base, linking bar, two pedals (with their key letters), dark bar below
   c.lineWidth = Math.max(1, u);
   c.strokeStyle = '#8c8c8c';
   c.fillStyle = '#ececec';
-  c.beginPath();
-  c.moveTo(...P(46, 49));
-  c.lineTo(...P(86, 49));
-  c.lineTo(...P(82, 33));
-  c.lineTo(...P(50, 33));
-  c.closePath();
+  poly(c, P, [[46, 49], [86, 49], [82, 33], [50, 33]]);
   c.fill();
   c.stroke();
   c.fillStyle = '#9a9a9a';
   c.fillRect(...P(58, 25), 16 * u, 2.5 * u);
-  for (const px of [53, 70]) {
+  const sides = [
+    { x: 53, act: s.actL || 0, defl: Math.max(0, -pedal), key: s.keyL || 'L' },
+    { x: 70, act: s.actR || 0, defl: Math.max(0, pedal), key: s.keyR || 'R' },
+  ];
+  for (const sd of sides) {
+    const lit = fb && sd.act > 0;
+    const d = fb ? sd.defl : 0;
+    const x = sd.x;
+    const y = 15 + d * 2.5; // the pedal sinks as it is pressed
+    poly(c, P, [[x + 4.5, 2], [x + 9, 8], [x + 6.5, 8], [x + 6.5, 12], [x + 2.5, 12], [x + 2.5, 8], [x, 8]]);
+    c.fillStyle = lit ? LIT : '#b4b4b4';
+    c.fill();
+    if (lit) {
+      c.shadowColor = LIT_GLOW;
+      c.shadowBlur = 7 * u;
+    }
+    rr(c, ...P(x, y), 9 * u, 24 * u, 3 * u);
     c.fillStyle = '#dddddd';
-    rr(c, ...P(px, 15), 9 * u, 24 * u, 3 * u);
     c.fill();
+    c.shadowBlur = 0;
+    if (d > 0.001) {
+      c.save();
+      rr(c, ...P(x, y), 9 * u, 24 * u, 3 * u);
+      c.clip();
+      c.fillStyle = LIT;
+      c.fillRect(...P(x, y + 24 * (1 - d)), 9 * u, 24 * d * u);
+      c.restore();
+    }
+    rr(c, ...P(x, y), 9 * u, 24 * u, 3 * u);
+    c.lineWidth = lit ? Math.max(1.5, 1.6 * u) : Math.max(1, u);
+    c.strokeStyle = lit ? LIT : '#8c8c8c';
     c.stroke();
-    c.fillStyle = '#b4b4b4';
-    c.beginPath();
-    c.moveTo(...P(px + 4.5, 2));
-    c.lineTo(...P(px + 9, 8));
-    c.lineTo(...P(px + 6.5, 8));
-    c.lineTo(...P(px + 6.5, 12));
-    c.lineTo(...P(px + 2.5, 12));
-    c.lineTo(...P(px + 2.5, 8));
-    c.lineTo(...P(px, 8));
-    c.closePath();
-    c.fill();
+    if (fb) {
+      c.font = `700 ${Math.max(9, Math.round(8 * u))}px system-ui, -apple-system, 'Segoe UI', sans-serif`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = d > 0.62 ? '#ffffff' : lit ? LIT : '#6d6d6d';
+      c.fillText(sd.key, ...P(x + 4.5, y + 8));
+    }
   }
+  c.lineWidth = Math.max(1, u);
   c.fillStyle = '#5a5a5a';
   c.fillRect(...P(52, 52), 28 * u, 4 * u);
+
+  // optional indicators
+  if (s.showStick) {
+    const x = ox + 37 * u;
+    const y0 = oy + 8 * u;
+    const y1 = oy + 52 * u;
+    c.fillStyle = '#b9b9b9';
+    c.fillRect(x, y0, 3 * u, y1 - y0);
+    c.fillStyle = '#7d7d7d';
+    c.fillRect(x - 2 * u, (y0 + y1) / 2 - 0.5, 7 * u, 1);
+    const ym = (y0 + y1) / 2 - stick * ((y1 - y0) / 2); // forward = up
+    c.fillStyle = NEEDLE_BLUE;
+    c.fillRect(x - 3 * u, ym - 1.5 * u, 9 * u, 3 * u);
+  }
+  if (s.showPedal) {
+    const x0 = ox + 92 * u;
+    const x1 = ox + 142 * u;
+    const y = oy + 30 * u;
+    c.fillStyle = '#b9b9b9';
+    c.fillRect(x0, y - 1.5 * u, x1 - x0, 3 * u);
+    c.fillStyle = '#7d7d7d';
+    c.fillRect((x0 + x1) / 2 - 0.5, y - 4 * u, 1, 8 * u);
+    const xm = (x0 + x1) / 2 + pedal * ((x1 - x0) / 2);
+    c.fillStyle = BALL_BLUE;
+    c.fillRect(xm - 1.5 * u, y - 4.5 * u, 3 * u, 9 * u);
+  }
+  if (s.errorBars && s.tol) {
+    const x0 = ox + 160 * u;
+    const rows = [];
+    if (s.mode !== 'ball') rows.push(['Needle', Math.abs(s.eN || 0) / s.tol.n]);
+    if (s.mode !== 'needle') rows.push(['Ball', Math.abs(s.eB || 0) / s.tol.b]);
+    c.font = `500 ${Math.round(11 * u)}px system-ui, sans-serif`;
+    c.textAlign = 'left';
+    c.textBaseline = 'middle';
+    rows.forEach(([name, r], i) => {
+      const y = oy + (20 + i * 20) * u;
+      c.fillStyle = theme.text;
+      c.fillText(name, x0, y);
+      c.fillStyle = '#bdbdbd';
+      c.fillRect(x0 + 44 * u, y - 3 * u, 60 * u, 6 * u);
+      c.fillStyle = r <= 1 ? '#2e9e5b' : '#d9822b';
+      c.fillRect(x0 + 44 * u, y - 3 * u, Math.min(60, (r / 3) * 60) * u, 6 * u);
+      c.fillStyle = '#555';
+      c.fillRect(x0 + 64 * u, y - 5 * u, 1, 10 * u); // tolerance mark at 1/3
+    });
+  }
+}
+
+/** Stand-alone stick + pedal pictures (Hardware test page), centred and larger. */
+export class LegendView {
+  constructor(canvas, theme = 'light') {
+    this.canvas = canvas;
+    this.c = canvas.getContext('2d');
+    this.theme = THEMES[theme] || THEMES.light;
+  }
+  draw(s) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = this.canvas.getBoundingClientRect();
+    const W = Math.max(1, r.width);
+    const H = Math.max(1, r.height);
+    const bw = Math.round(W * dpr);
+    const bh = Math.round(H * dpr);
+    if (this.canvas.width !== bw || this.canvas.height !== bh) {
+      this.canvas.width = bw;
+      this.canvas.height = bh;
+    }
+    const c = this.c;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.fillStyle = this.theme.bg;
+    c.fillRect(0, 0, W, H);
+    const spanU = s.showPedal ? 145 : 92;
+    const u = Math.max(0.5, Math.min((H - 12) / 60, (W - 24) / spanU));
+    const ox = (W - spanU * u) / 2 + u;
+    const oy = (H - 60 * u) / 2;
+    this.canvas.dataset.geom = JSON.stringify({ ox, oy, u, dpr });
+    drawLegend(c, ox, oy, u, s, this.theme);
+  }
 }
 
 export class Instruments {
@@ -313,7 +440,7 @@ export class Instruments {
     oc.fillRect(0, 0, W, H);
     drawDialStatic(oc, this.L);
     drawTrackStatic(oc, this.L);
-    if (this.opts.strip) drawStrip(oc, this.L, theme);
+    if (this.opts.strip) drawStripLine(oc, this.L, theme);
     this.staticLayer = off;
     this.dirty = false;
   }
@@ -386,55 +513,7 @@ export class Instruments {
       c.fillText(s.label, 14, 12);
     }
 
-    // optional indicators in the legend strip
-    const st = L.strip;
-    if (st.h) {
-      const u = st.h / 60;
-      const ox = 12;
-      if (s.showStick) {
-        const x = ox + 37 * u;
-        const y0 = st.y + 8 * u;
-        const y1 = st.y + 52 * u;
-        c.fillStyle = '#b9b9b9';
-        c.fillRect(x, y0, 3 * u, y1 - y0);
-        c.fillStyle = '#7d7d7d';
-        c.fillRect(x - 2 * u, (y0 + y1) / 2 - 0.5, 7 * u, 1);
-        const ym = (y0 + y1) / 2 - clamp1(s.stick || 0) * ((y1 - y0) / 2); // forward = up
-        c.fillStyle = NEEDLE_BLUE;
-        c.fillRect(x - 3 * u, ym - 1.5 * u, 9 * u, 3 * u);
-      }
-      if (s.showPedal) {
-        const x0 = ox + 92 * u;
-        const x1 = ox + 142 * u;
-        const y = st.y + 30 * u;
-        c.fillStyle = '#b9b9b9';
-        c.fillRect(x0, y - 1.5 * u, x1 - x0, 3 * u);
-        c.fillStyle = '#7d7d7d';
-        c.fillRect((x0 + x1) / 2 - 0.5, y - 4 * u, 1, 8 * u);
-        const xm = (x0 + x1) / 2 + clamp1(s.pedal || 0) * ((x1 - x0) / 2);
-        c.fillStyle = BALL_BLUE;
-        c.fillRect(xm - 1.5 * u, y - 4.5 * u, 3 * u, 9 * u);
-      }
-      if (s.errorBars && s.tol) {
-        const x0 = ox + 160 * u;
-        const rows = [];
-        if (s.mode !== 'ball') rows.push(['Needle', Math.abs(s.eN || 0) / s.tol.n]);
-        if (s.mode !== 'needle') rows.push(['Ball', Math.abs(s.eB || 0) / s.tol.b]);
-        c.font = `500 ${Math.round(11 * u)}px system-ui, sans-serif`;
-        c.textAlign = 'left';
-        c.textBaseline = 'middle';
-        rows.forEach(([name, r], i) => {
-          const y = st.y + (20 + i * 20) * u;
-          c.fillStyle = theme.text;
-          c.fillText(name, x0, y);
-          c.fillStyle = '#bdbdbd';
-          c.fillRect(x0 + 44 * u, y - 3 * u, 60 * u, 6 * u);
-          c.fillStyle = r <= 1 ? '#2e9e5b' : '#d9822b';
-          c.fillRect(x0 + 44 * u, y - 3 * u, Math.min(60, (r / 3) * 60) * u, 6 * u);
-          c.fillStyle = '#555';
-          c.fillRect(x0 + 64 * u, y - 5 * u, 1, 10 * u); // tolerance mark at 1/3
-        });
-      }
-    }
+    // stick + pedal pictures (react to input when s.feedback) and optional indicators
+    if (L.strip.h) drawLegend(c, 12, L.strip.y, L.strip.h / 60, s, theme);
   }
 }

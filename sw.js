@@ -48,6 +48,7 @@ const ASSETS = [
   'src/ui/tuning.js',
   'src/ui/hardware.js',
   'src/ui/history.js',
+  'src/ui/help.js',
 ];
 
 self.addEventListener('install', (event) => {

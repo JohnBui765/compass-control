@@ -65,10 +65,15 @@ try {
   await shot('home');
 
   // ---- every screen without errors ----
-  for (const r of ['settings', 'hardware', 'history', 'about']) {
+  for (const r of ['settings', 'hardware', 'history', 'about', 'help']) {
     await page.goto(`${APP}#/${r}`);
     await page.waitForSelector('.topbar h1');
   }
+  await page.goto(`${APP}#/help/controls`);
+  await page.waitForSelector('#help-controls .cheat');
+  const cheat = (await page.textContent('#help-controls .cheat')).replace(/\s+/g, ' ');
+  check('how-to page shows the real keys: ball right → D, ball left → A, needle high → forward', /right → press D/.test(cheat) && /left → press A/.test(cheat) && /high → slide the mouse forward/.test(cheat), cheat.slice(0, 90));
+  await shot('help');
   await page.goto(`${APP}#/about`);
   await page.waitForFunction(() => /✓|run tools/.test(document.body.textContent));
   check('about: manifest id matches the serving folder', (await page.textContent('body')).includes('/compass-control/ ✓'));
@@ -98,6 +103,26 @@ try {
   const logRows = await page.$$eval('tbody tr', (rows) => rows.map((r) => r.textContent));
   check('hardware: holding D gives full right pedal, release returns to 0', held === '+1.00' && released === '+0.00', `${held} → ${released}`);
   check('hardware: key log shows keyup with hold time', logRows.some((t) => t.startsWith('upKeyD')), logRows[0]);
+  // the pressed pedal lights up on the stick/pedal picture (pixels read from the canvas)
+  const px = (side) =>
+    page.evaluate((sd) => {
+      const cv = document.querySelector('canvas.legend-view');
+      const g = JSON.parse(cv.dataset.geom);
+      const x = g.ox + ((sd === 'L' ? 53 : 70) + 4.5) * g.u;
+      const y = g.oy + 34 * g.u;
+      const d = cv.getContext('2d').getImageData(Math.round(x * g.dpr), Math.round(y * g.dpr), 1, 1).data;
+      return [d[0], d[1], d[2]];
+    }, side);
+  const isBlue = ([r, , b]) => b > 150 && r < 120;
+  const beforeA = await px('L');
+  await page.keyboard.down('KeyA');
+  await sleep(600);
+  const litL = await px('L');
+  const litR = await px('R');
+  await page.keyboard.up('KeyA');
+  await sleep(500);
+  const afterA = await px('L');
+  check('pressing A lights up and fills the LEFT pedal only; releasing clears it', !isBlue(beforeA) && isBlue(litL) && !isBlue(litR) && !isBlue(afterA), `${beforeA} → ${litL} (right ${litR}) → ${afterA}`);
   // pointer lock in headless Chromium (may be unsupported there)
   await page.click('text=Click here to capture the mouse');
   await sleep(400);

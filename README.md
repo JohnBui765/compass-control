@@ -45,6 +45,8 @@ Note that Chrome's "Clear site data", and the "also clear data" box when you uni
 
 ## 3. First steps
 
+Open **How to use** on Home first. It has a controls card built from your current settings (which key moves the ball which way, how the mouse moves the needle), a 4-step start, a guide to the session and the results, tips, and fixes for common problems. Every page has a **? How to use** button, the session start card shows the same controls card, and the 3-2-1 countdown shows a one-line reminder.
+
 1. **Hardware test**
    - Click **Start calibration**, then move the mouse exactly **10 cm** along a ruler and click. Until you do, the app assumes an 800 DPI mouse.
    - Check that "Raw input" says **yes**. If it says no, turn off Windows "Enhance pointer precision".
@@ -57,7 +59,7 @@ Note that Chrome's "Clear site data", and the "also clear data" box when you uni
    - Losing focus, full screen or the mouse also pauses. Paused time is never scored.
 4. **Results:** a score per run, time on target, RMS error, error-over-time charts with the on-target bands shaded, the settings used, and **Replay** for any run.
 
-### Controls (defaults)
+### Controls (defaults – the app shows your current ones under How to use)
 
 | | Default | Setting |
 |---|---|---|
@@ -65,6 +67,15 @@ Note that Chrome's "Clear site data", and the "also clear data" box when you uni
 | Stick → needle | **Aviation:** push forward → needle down | Settings → Test feel → Directions |
 | Pedals | `A` = left, `D` = right. Both or neither = centre. Full pedal in 0.35 s, back in 0.25 s | Settings → Pedals (any key, including F13–F24) |
 | Pedal → ball | **Step on the ball:** right pedal → ball moves left | Settings → Test feel → Directions |
+
+**Input feedback.** The stick and pedal pictures at the bottom left of the test screen react to you:
+
+- The pedal you press lights up at once.
+- It fills (and sinks a little) as the pedal value builds up. The ball follows the fill, not the key.
+- Holding both keys lights both pedals with no fill, because they cancel.
+- The stick's ↑/↓ arrow lights up the way you push, and the grip moves with it.
+
+The real test's icons look static, so **Settings → Training aids → Exam look** hides every aid at once for your final sessions. The Hardware test page shows the same pictures, larger, so you can check your keys or foot switch.
 
 ---
 
@@ -203,7 +214,7 @@ src/state.js              settings (device, session, scoring, training, display)
 src/input/                mouse-stick.js, keyboard-pedals.js, gamepad.js, index.js
 src/sim/                  prng, disturbance, model, engine, scoring, profile, feel (pure, tested)
 src/render/               instruments.js (test screen), charts.js
-src/ui/                   screens (home/about), session, results, settings, tuning, hardware, history, fields, dom
+src/ui/                   screens (home/about), help (how to use), session, results, settings, tuning, hardware, history, fields, dom
 tests/                    sim.test.js, pwa.test.js, e2e/run.mjs
 tools/                    set-repo-name.mjs, make-icons.py
 ```

@@ -92,8 +92,11 @@ export function toast(msg, ms = 2600) {
 }
 
 /** Standard page header with a Home button. */
+const HELP_SECTION = { 'Tuning Lab': 'tuning', 'Hardware test': 'start', Results: 'results', History: 'results', Settings: 'controls' };
 export function topBar(title, ctx, ...extra) {
-  return h('header', { class: 'topbar' }, h('button', { class: 'btn small', onclick: () => ctx.navigate('home') }, '← Home'), h('h1', null, title), ...extra);
+  const sec = HELP_SECTION[title];
+  const help = title === 'How to use' ? null : h('button', { class: 'btn small', onclick: () => (sec ? ctx.navigate('help', sec) : ctx.navigate('help')) }, '? How to use');
+  return h('header', { class: 'topbar' }, h('button', { class: 'btn small', onclick: () => ctx.navigate('home') }, '← Home'), h('h1', null, title), ...extra, help);
 }
 
 /** Horizontal bar for a value in [-1, 1] (centre-zero) or [0, 1]. */

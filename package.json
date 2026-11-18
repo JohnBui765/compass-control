@@ -1,0 +1,10 @@
+{
+  "name": "compass-control",
+  "private": true,
+  "description": "Control Trainer: needle-and-ball tracking practice PWA (no build step).",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "e2e": "node tests/e2e/run.mjs"
+  }
+}
